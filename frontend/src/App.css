@@ -1,0 +1,184 @@
+/* Base App Styling */
+.app {
+  min-height: 100vh;
+  padding: 40px 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #f6f8fc, #e3ebf6);
+  color: #333;
+  transition: all 0.3s ease-in-out;
+}
+
+/* Dark mode */
+.dark {
+  background: linear-gradient(135deg, #121212, #1f1f1f);
+  color: #f1f1f1;
+}
+
+/* Input area */
+.input-section {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 25px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.input-section input[type="text"],
+.input-section input[type="date"] {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid #ccc;
+  font-size: 1rem;
+  width: 200px;
+}
+
+.input-section button {
+  padding: 10px 16px;
+  background-color: #0077ff;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.input-section button:hover {
+  background-color: #005ad1;
+}
+
+/* Todo item styling */
+.todo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: white;
+  margin: 10px auto;
+  padding: 14px 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 600px;
+  transition: background 0.3s;
+}
+
+.todo-item.done {
+  opacity: 0.6;
+  text-decoration: line-through;
+}
+
+.todo-item span {
+  font-size: 1.1rem;
+}
+
+.todo-item .due-date {
+  font-size: 0.9rem;
+  color: #ff4d4f;
+  margin-top: 4px;
+}
+
+.todo-item .reminder {
+  color: #ffc107;
+  font-size: 0.85rem;
+}
+
+.todo-item input[type="checkbox"] {
+  margin-right: 12px;
+  transform: scale(1.4);
+}
+
+/* Dark Mode Adjustments */
+.dark .todo-item {
+  background: #2e2e2e;
+  color: #f1f1f1;
+}
+
+.dark .input-section input,
+.dark .input-section button {
+  background: #444;
+  color: #fff;
+  border: none;
+}
+
+.dark .input-section button:hover {
+  background: #666;
+}
+
+/* Filter Section */
+.filter-section {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.filter-section button {
+  padding: 10px 20px;
+  background-color: #008080;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  margin: 0 10px;
+}
+
+.filter-section button:hover {
+  background-color: #006666;
+}
+
+/* Dark mode toggle button */
+.dark-toggle {
+  margin: 30px auto;
+  display: block;
+  padding: 10px 18px;
+  background: #1e90ff;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dark-toggle:hover {
+  background: #1060c9;
+}
+
+/* Todo List Section */
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  align-items: center;
+}
+
+.text-section {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.text-section small {
+  font-size: 0.9rem;
+  color: #6c757d;
+}
+
+.text-section .reminder {
+  font-weight: bold;
+}
+
+button {
+  cursor: pointer;
+  background-color: #ff4d4f;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-weight: bold;
+  transition: background 0.3s ease;
+}
+
+button:hover {
+  background-color: #d93639;
+}
