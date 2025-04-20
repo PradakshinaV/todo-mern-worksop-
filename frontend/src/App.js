@@ -3,12 +3,13 @@ import axios from 'axios';
 import './App.css'; // Add styles as needed
 
 function App() {
-  const [todos, setTodos] = useState([]);
+  const [todos, setTodos] = useState([]); // All todos (both completed and pending)
   const [newTodo, setNewTodo] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [reminder, setReminder] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [filter, setFilter] = useState('all'); // Filter state
+  const [editingTodo, setEditingTodo] = useState(null); // State for the todo being edited
 
   // Fetch todos from the backend
   useEffect(() => {
@@ -34,12 +35,30 @@ function App() {
     setReminder(false);
   };
 
-  // Toggle task completion
+  // Update existing todo
+  const updateTodo = async () => {
+    if (!newTodo.trim()) return;
+
+    const res = await axios.put(`http://localhost:5000/todos/${editingTodo._id}`, {
+      text: newTodo,
+      dueDate,
+      reminder,
+      completed: editingTodo.completed,
+    });
+
+    setTodos(todos.map((t) => (t._id === editingTodo._id ? res.data : t)));
+    setEditingTodo(null); // Clear the editing state
+    setNewTodo('');
+    setDueDate('');
+    setReminder(false);
+  };
+
+  // Toggle task completion (Completed / Pending)
   const toggleComplete = async (id) => {
     const todo = todos.find((t) => t._id === id);
     const res = await axios.put(`http://localhost:5000/todos/${id}`, {
       ...todo,
-      completed: !todo.completed,
+      completed: !todo.completed, // Toggle the completed status
     });
 
     setTodos(todos.map((t) => (t._id === id ? res.data : t)));
@@ -67,7 +86,7 @@ function App() {
       <div className="input-section">
         <input
           type="text"
-          placeholder="Add new task..."
+          placeholder={editingTodo ? 'Edit task...' : 'Add new task...'}
           value={newTodo}
           onChange={(e) => setNewTodo(e.target.value)}
         />
@@ -84,7 +103,9 @@ function App() {
           />
           🔔 Reminder
         </label>
-        <button onClick={addTodo}>Add</button>
+        <button onClick={editingTodo ? updateTodo : addTodo}>
+          {editingTodo ? 'Update' : 'Add'}
+        </button>
       </div>
 
       {/* Filter Section */}
@@ -98,17 +119,27 @@ function App() {
       {/* Todo List */}
       <div className="todo-list">
         {filteredTodos.map((todo) => (
-          <div key={todo._id} className={`todo-item ${todo.completed ? 'done' : ''}`}>
+          <div
+            key={todo._id}
+            className={`todo-item ${todo.completed ? 'done' : ''}`}
+            style={todo.completed ? { textDecoration: 'line-through' } : {}}
+          >
             <input
               type="checkbox"
               checked={todo.completed}
-              onChange={() => toggleComplete(todo._id)}
+              onChange={() => toggleComplete(todo._id)} // Toggle completion
             />
             <div className="text-section">
               <span>{todo.text}</span>
               {todo.dueDate && <small>📅 {todo.dueDate}</small>}
               {todo.reminder && <span className="reminder">🔔</span>}
             </div>
+            <button onClick={() => {
+              setEditingTodo(todo);
+              setNewTodo(todo.text);
+              setDueDate(todo.dueDate);
+              setReminder(todo.reminder);
+            }}>✏️ Edit</button>
             <button onClick={() => deleteTodo(todo._id)}>🗑️</button>
           </div>
         ))}
