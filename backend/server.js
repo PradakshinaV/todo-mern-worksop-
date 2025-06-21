@@ -1,216 +1,155 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import './App.css';
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const dotenv = require('dotenv');
+const path = require('path');
 
-function App() {
-  const [todos, setTodos] = useState([]);
-  const [newTodo, setNewTodo] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [reminder, setReminder] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
-  const [filter, setFilter] = useState('all');
-  const [editingTodo, setEditingTodo] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [priority, setPriority] = useState('medium');
-  const [category, setCategory] = useState('personal');
-  const [sortBy, setSortBy] = useState('dueDate');
+// Load environment variables
+dotenv.config();
 
-  useEffect(() => {
-    axios.get('http://localhost:5000/todos').then((res) => {
-      setTodos(res.data);
-    });
-  }, []);
+const app = express();
+const PORT = process.env.PORT || 5000;
 
-  const addTodo = async () => {
-    if (!newTodo.trim()) return;
+// ✅ Middleware
+app.use(cors({
+  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-    const res = await axios.post('http://localhost:5000/todos', {
-      text: newTodo,
-      dueDate,
-      reminder,
-      completed: false,
-      priority,
-      category
-    });
+// ✅ MongoDB connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/todoapp';
+mongoose.connect(MONGODB_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log('✅ Connected to MongoDB successfully'))
+.catch((error) => {
+  console.error('❌ MongoDB connection error:', error.message);
+  process.exit(1);
+});
 
-    setTodos([...todos, res.data]);
-    resetForm();
-  };
+// ✅ Todo schema & model
+const todoSchema = new mongoose.Schema({
+  text: {
+    type: String,
+    required: [true, 'Todo text is required'],
+    trim: true,
+    maxlength: [500, 'Todo text cannot exceed 500 characters']
+  },
+  completed: { type: Boolean, default: false },
+  priority: {
+    type: String,
+    enum: ['low', 'medium', 'high'],
+    default: 'medium'
+  },
+  category: {
+    type: String,
+    enum: ['personal', 'work', 'health', 'education', 'shopping'],
+    default: 'personal'
+  },
+  dueDate: {
+    type: Date,
+    required: [true, 'Due Date is required'],
+    default: null
+  },
+  reminder: { type: Boolean, default: false },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
 
-  const updateTodo = async () => {
-    if (!newTodo.trim()) return;
+todoSchema.pre('save', function(next) {
+  this.updatedAt = Date.now();
+  next();
+});
 
-    const res = await axios.put(`http://localhost:5000/todos/${editingTodo._id}`, {
-      text: newTodo,
-      dueDate,
-      reminder,
-      completed: editingTodo.completed,
-      priority,
-      category
-    });
+const Todo = mongoose.model('Todo', todoSchema);
 
-    setTodos(todos.map((t) => (t._id === editingTodo._id ? res.data : t)));
-    setEditingTodo(null);
-    resetForm();
-  };
+// ✅ Utility for async error handling
+const asyncHandler = (fn) => (req, res, next) => {
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
 
-  const resetForm = () => {
-    setNewTodo('');
-    setDueDate('');
-    setReminder(false);
-    setPriority('medium');
-    setCategory('personal');
-  };
+// ✅ Routes
 
-  const toggleComplete = async (id) => {
-    const todo = todos.find((t) => t._id === id);
-    const res = await axios.put(`http://localhost:5000/todos/${id}`, {
-      ...todo,
-      completed: !todo.completed
-    });
-    setTodos(todos.map((t) => (t._id === id ? res.data : t)));
-  };
+// Get all todos
+app.get('/todos', asyncHandler(async (req, res) => {
+  const todos = await Todo.find().sort({ createdAt: -1 });
+  res.json({ success: true, data: todos });
+}));
 
-  const deleteTodo = async (id) => {
-    await axios.delete(`http://localhost:5000/todos/${id}`);
-    setTodos(todos.filter((t) => t._id !== id));
-  };
+// Create a todo
+app.post('/todos', asyncHandler(async (req, res) => {
+  const { text, priority, category, dueDate, reminder } = req.body;
 
-  const filteredTodos = todos
-    .filter((todo) => {
-      if (filter === 'completed') return todo.completed;
-      if (filter === 'pending') return !todo.completed;
-      if (filter === 'reminder') return todo.reminder;
-      return true;
-    })
-    .filter((todo) =>
-      todo.text.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      todo.priority.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      todo.category.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      if (sortBy === 'dueDate') return new Date(a.dueDate) - new Date(b.dueDate);
-      if (sortBy === 'priority') {
-        const order = { high: 3, medium: 2, low: 1 };
-        return order[b.priority] - order[a.priority];
-      }
-      return new Date(b.createdAt) - new Date(a.createdAt);
-    });
+  if (!text || !text.trim()) {
+    return res.status(400).json({ success: false, message: 'Todo text is required' });
+  }
 
-  return (
-    <div className={darkMode ? 'app dark' : 'app'}>
-      <div className="header">
-        <h2>📝 Welcome to To-Do List</h2>
-        <input
-          type="text"
-          className="search-input"
-          placeholder="Search by task, priority, category..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
-      </div>
+  const todo = new Todo({ text: text.trim(), priority, category, dueDate, reminder });
+  const savedTodo = await todo.save();
 
-      {/* Task Stats */}
-      <div className="stats">
-        <p>Total: {todos.length}</p>
-        <p>Completed: {todos.filter((t) => t.completed).length}</p>
-        <p>Pending: {todos.filter((t) => !t.completed).length}</p>
-        <p>Reminders: {todos.filter((t) => t.reminder).length}</p>
-        <p>Overdue: {todos.filter((t) => t.dueDate && new Date(t.dueDate) < new Date() && !t.completed).length}</p>
-      </div>
+  res.status(201).json({ success: true, data: savedTodo });
+}));
 
-      {/* Input Form */}
-      <div className="input-section">
-        <input
-          type="text"
-          placeholder={editingTodo ? 'Edit task...' : 'Add new task...'}
-          value={newTodo}
-          onChange={(e) => setNewTodo(e.target.value)}
-        />
-        <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
-        <select value={priority} onChange={(e) => setPriority(e.target.value)}>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-        </select>
-        <select value={category} onChange={(e) => setCategory(e.target.value)}>
-          <option value="personal">Personal</option>
-          <option value="work">Work</option>
-        </select>
-        <label>
-          <input
-            type="checkbox"
-            checked={reminder}
-            onChange={() => setReminder(!reminder)}
-          /> 🔔 Reminder
-        </label>
-        <button onClick={editingTodo ? updateTodo : addTodo}>
-          {editingTodo ? 'Update' : 'Add'}
-        </button>
-      </div>
+// Get one todo
+app.get('/todos/:id', asyncHandler(async (req, res) => {
+  const todo = await Todo.findById(req.params.id);
+  if (!todo) return res.status(404).json({ success: false, message: 'Todo not found' });
+  res.json({ success: true, data: todo });
+}));
 
-      {/* Filters */}
-      <div className="filter-section">
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-          <option value="dueDate">Sort by Due Date</option>
-          <option value="priority">Sort by Priority</option>
-        </select>
-        <button onClick={() => setFilter('all')}>All</button>
-        <button onClick={() => setFilter('completed')}>Completed</button>
-        <button onClick={() => setFilter('pending')}>Pending</button>
-        <button onClick={() => setFilter('reminder')}>🔔 Reminders</button>
-        <button onClick={() => setDarkMode(!darkMode)}>
-          {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
-        </button>
-      </div>
+// Update a todo
+app.put('/todos/:id', asyncHandler(async (req, res) => {
+  const todo = await Todo.findById(req.params.id);
+  if (!todo) return res.status(404).json({ success: false, message: 'Todo not found' });
 
-      {/* Todo Table */}
-      <table className="todo-table">
-        <thead>
-          <tr>
-            <th>✔</th>
-            <th>Task</th>
-            <th>Priority</th>
-            <th>Due Date</th>
-            <th>🔔</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {filteredTodos.length === 0 ? (
-            <tr><td colSpan="6">No tasks found.</td></tr>
-          ) : (
-            filteredTodos.map((todo) => (
-              <tr key={todo._id} className={todo.completed ? 'done' : ''}>
-                <td>
-                  <input
-                    type="checkbox"
-                    checked={todo.completed}
-                    onChange={() => toggleComplete(todo._id)}
-                  />
-                </td>
-                <td>{todo.text}</td>
-                <td>{todo.priority}</td>
-                <td>{todo.dueDate || '—'}</td>
-                <td>{todo.reminder ? '🔔' : ''}</td>
-                <td>
-                  <button onClick={() => {
-                    setEditingTodo(todo);
-                    setNewTodo(todo.text);
-                    setDueDate(todo.dueDate);
-                    setReminder(todo.reminder);
-                    setPriority(todo.priority);
-                    setCategory(todo.category);
-                  }}>✏️</button>
-                  <button onClick={() => deleteTodo(todo._id)}>🗑️</button>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
+  const { text, completed, priority, category, dueDate, reminder } = req.body;
+  if (text !== undefined) todo.text = text.trim();
+  if (completed !== undefined) todo.completed = completed;
+  if (priority !== undefined) todo.priority = priority;
+  if (category !== undefined) todo.category = category;
+  if (dueDate !== undefined) todo.dueDate = dueDate;
+  if (reminder !== undefined) todo.reminder = reminder;
 
-export default App;
+  const updated = await todo.save();
+  res.json({ success: true, data: updated });
+}));
+
+// Delete a todo
+app.delete('/todos/:id', asyncHandler(async (req, res) => {
+  const todo = await Todo.findByIdAndDelete(req.params.id);
+  if (!todo) return res.status(404).json({ success: false, message: 'Todo not found' });
+  res.json({ success: true, message: 'Todo deleted' });
+}));
+
+// ✅ Error handler
+const errorHandler = (err, req, res, next) => {
+  console.error('Error:', err.message);
+  if (err.name === 'ValidationError') {
+    const errors = Object.values(err.errors).map(e => e.message);
+    return res.status(400).json({ success: false, message: 'Validation Error', errors });
+  }
+  if (err.name === 'CastError') {
+    return res.status(400).json({ success: false, message: 'Invalid ID format' });
+  }
+  res.status(500).json({
+    success: false,
+    message: 'Internal Server Error',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
+  });
+};
+
+app.use(errorHandler);
+
+// ✅ Serve React frontend (for production)
+app.use(express.static(path.join(__dirname, '../frontend/build')));
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/build/index.html'));
+});
+
+// ✅ Start server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
+});
