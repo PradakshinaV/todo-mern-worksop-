@@ -1,4 +1,4 @@
-/* App Container */
+
 .app {
   max-width: 1200px;
   margin: 0 auto;
@@ -7,13 +7,64 @@
   background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: 100vh;
 }
+/* Notification Popup Styles */
+.notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+  color: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 500;
+  animation: slideIn 0.3s ease-out;
+  max-width: 300px;
+  word-wrap: break-word;
+}
 
+.notification-close {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 0;
+  margin-left: auto;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.notification-close:hover {
+  opacity: 1;
+}
+
+/* Animation for notification */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Dark mode notification */
+.app.dark .notification {
+  background: linear-gradient(135deg, #343a40 0%, #495057 100%);
+  border: 1px solid #6c757d;
+}
 .app.dark {
   background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
   color: white;
 }
-
-/* Header */
 .header {
   text-align: center;
   margin-bottom: 30px;
@@ -29,8 +80,6 @@
 .app.dark .header h2 {
   color: white;
 }
-
-/* Search Input */
 .search-input {
   width: 100%;
   max-width: 400px;
@@ -46,8 +95,6 @@
   border-color: #2980b9;
   box-shadow: 0 0 10px rgba(52, 152, 219, 0.3);
 }
-
-/* Stats Section */
 .stats {
   display: flex;
   justify-content: space-around;
@@ -111,8 +158,6 @@
   font-weight: 500;
   cursor: pointer;
 }
-
-/* Blue button styling */
 .input-section button, .filter-section button, .icon-button {
   background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
   color: white;
@@ -135,8 +180,6 @@
 .input-section button:active, .filter-section button:active, .icon-button:active {
   transform: translateY(0);
 }
-
-/* Filter Section */
 .filter-section {
   display: flex;
   justify-content: space-between;
@@ -174,8 +217,6 @@
 .filter-section select:focus {
   border-color: #3498db;
 }
-
-/* Enhanced table styling */
 .todo-table {
   width: 100%;
   background: white;
@@ -263,8 +304,6 @@
   background: rgba(231, 76, 60, 0.1);
   border-left: 4px solid #e74c3c;
 }
-
-/* Priority Styling */
 .priority-high {
   background: linear-gradient(135deg, #e74c3c, #c0392b);
   color: white;
@@ -294,8 +333,6 @@
   font-weight: bold;
   text-transform: uppercase;
 }
-
-/* Icon Button */
 .icon-button {
   padding: 8px 12px;
   margin: 0 5px;
@@ -308,13 +345,10 @@
   justify-content: center;
 }
 
-/* Overdue Indicator */
 .overdue-indicator {
   color: #e74c3c;
   font-weight: bold;
 }
-
-/* Error Message */
 .error-message {
   background: #e74c3c;
   color: white;
@@ -334,7 +368,6 @@
   cursor: pointer;
 }
 
-/* Responsive Design */
 @media (max-width: 768px) {
   .input-section {
     flex-direction: column;

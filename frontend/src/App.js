@@ -16,30 +16,95 @@ function App() {
   const [sortBy, setSortBy] = useState('dueDate');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notification, setNotification] = useState('');
 
-  const addTodo = () => {
+  // API Base URL
+  const API_URL = 'http://localhost:5000/api';
+
+  // Load todos from backend on component mount
+  useEffect(() => {
+    fetchTodos();
+    
+    // Load dark mode from localStorage
+    const savedDarkMode = localStorage.getItem('darkMode');
+    if (savedDarkMode) {
+      setDarkMode(JSON.parse(savedDarkMode));
+    }
+  }, []);
+
+  // Save dark mode preference to localStorage
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+  }, [darkMode]);
+
+  // Fetch todos from backend
+  const fetchTodos = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/todos`);
+      if (response.ok) {
+        const data = await response.json();
+        setTodos(data);
+      } else {
+        setError('Failed to fetch todos');
+      }
+    } catch (error) {
+      console.error('Error fetching todos:', error);
+      setError('Error connecting to server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Show notification function
+  const showNotification = (message) => {
+    setNotification(message);
+    setTimeout(() => setNotification(''), 3000); // Hide after 3 seconds
+  };
+
+  const addTodo = async () => {
     if (!newTodo.trim()) return;
 
     const todo = {
-      _id: Date.now().toString(),
       text: newTodo,
       dueDate,
       dueTime,
       reminder,
       completed: false,
       priority,
-      category,
-      createdAt: new Date().toISOString()
+      category
     };
 
-    setTodos([...todos, todo]);
-    resetForm();
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/todos`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(todo),
+      });
+
+      if (response.ok) {
+        const newTodo = await response.json();
+        setTodos([...todos, newTodo]);
+        showNotification('✅ Task added successfully!');
+        resetForm();
+      } else {
+        setError('Failed to add todo');
+      }
+    } catch (error) {
+      console.error('Error adding todo:', error);
+      setError('Error connecting to server');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateTodo = () => {
+  const updateTodo = async () => {
     if (!newTodo.trim()) return;
 
-    setTodos(todos.map((t) => (t._id === editingTodo._id ? {
+    const updatedTodo = {
       ...editingTodo,
       text: newTodo,
       dueDate,
@@ -47,9 +112,33 @@ function App() {
       reminder,
       priority,
       category
-    } : t)));
-    setEditingTodo(null);
-    resetForm();
+    };
+
+    try {
+      setLoading(true);
+      const response = await fetch(`${API_URL}/todos/${editingTodo._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updatedTodo),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setTodos(todos.map((t) => (t._id === editingTodo._id ? updated : t)));
+        setEditingTodo(null);
+        showNotification('📝 Task updated successfully!');
+        resetForm();
+      } else {
+        setError('Failed to update todo');
+      }
+    } catch (error) {
+      console.error('Error updating todo:', error);
+      setError('Error connecting to server');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -61,12 +150,52 @@ function App() {
     setCategory('personal');
   };
 
-  const toggleComplete = (id) => {
-    setTodos(todos.map((t) => (t._id === id ? { ...t, completed: !t.completed } : t)));
+  const toggleComplete = async (id) => {
+    const todo = todos.find(t => t._id === id);
+    
+    try {
+      const response = await fetch(`${API_URL}/todos/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ...todo, completed: !todo.completed }),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        setTodos(todos.map((t) => (t._id === id ? updated : t)));
+        
+        if (!todo.completed) {
+          showNotification('🎉 Task completed!');
+        } else {
+          showNotification('↩️ Task marked as pending');
+        }
+      } else {
+        setError('Failed to update todo');
+      }
+    } catch (error) {
+      console.error('Error updating todo:', error);
+      setError('Error connecting to server');
+    }
   };
 
-  const deleteTodo = (id) => {
-    setTodos(todos.filter((t) => t._id !== id));
+  const deleteTodo = async (id) => {
+    try {
+      const response = await fetch(`${API_URL}/todos/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (response.ok) {
+        setTodos(todos.filter((t) => t._id !== id));
+        showNotification('🗑️ Task deleted successfully!');
+      } else {
+        setError('Failed to delete todo');
+      }
+    } catch (error) {
+      console.error('Error deleting todo:', error);
+      setError('Error connecting to server');
+    }
   };
 
   const filteredTodos = todos
@@ -100,8 +229,21 @@ function App() {
 
   return (
     <div className={darkMode ? 'app dark' : 'app'}>
+      {/* Notification Popup */}
+      {notification && (
+        <div className="notification">
+          {notification}
+          <button 
+            className="notification-close" 
+            onClick={() => setNotification('')}
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="header">
-        <h2>📝 Welcome to T-Do List</h2>
+        <h2>📝 Welcome to To-Do List</h2>
         <input
           type="text"
           className="search-input"
@@ -117,8 +259,7 @@ function App() {
           <button onClick={() => setError('')}>×</button>
         </div>
       )}
-
-      {/* Task Stats */}
+      
       <div className="stats">
         <p>📊 Total: {todos.length}</p>
         <p>✅ Completed: {todos.filter((t) => t.completed).length}</p>
@@ -131,7 +272,6 @@ function App() {
         }).length}</p>
       </div>
 
-      {/* Input Form */}
       <div className="input-section">
         <input
           type="text"
