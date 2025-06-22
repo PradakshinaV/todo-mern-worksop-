@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
 import './App.css';
 
 function App() {
   const [todos, setTodos] = useState([]);
   const [newTodo, setNewTodo] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [dueTime, setDueTime] = useState('');
   const [reminder, setReminder] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [filter, setFilter] = useState('all');
@@ -17,114 +17,56 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    fetchTodos();
-  }, []);
-
-  const fetchTodos = async () => {
-    try {
-      setLoading(true);
-      const response = await axios.get('http://localhost:5000/todos');
-      // Handle the new API response format
-      if (response.data.success) {
-        setTodos(response.data.data);
-      } else {
-        setError('Failed to fetch todos');
-      }
-    } catch (error) {
-      console.error('Error fetching todos:', error);
-      setError('Failed to connect to server');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addTodo = async () => {
+  const addTodo = () => {
     if (!newTodo.trim()) return;
 
-    try {
-      const response = await axios.post('http://localhost:5000/todos', {
-        text: newTodo,
-        dueDate,
-        reminder,
-        completed: false,
-        priority,
-        category
-      });
+    const todo = {
+      _id: Date.now().toString(),
+      text: newTodo,
+      dueDate,
+      dueTime,
+      reminder,
+      completed: false,
+      priority,
+      category,
+      createdAt: new Date().toISOString()
+    };
 
-      if (response.data.success) {
-        setTodos([...todos, response.data.data]);
-        resetForm();
-        setError('');
-      }
-    } catch (error) {
-      console.error('Error adding todo:', error);
-      setError('Failed to add todo');
-    }
+    setTodos([...todos, todo]);
+    resetForm();
   };
 
-  const updateTodo = async () => {
+  const updateTodo = () => {
     if (!newTodo.trim()) return;
 
-    try {
-      const response = await axios.put(`http://localhost:5000/todos/${editingTodo._id}`, {
-        text: newTodo,
-        dueDate,
-        reminder,
-        completed: editingTodo.completed,
-        priority,
-        category
-      });
-
-      if (response.data.success) {
-        setTodos(todos.map((t) => (t._id === editingTodo._id ? response.data.data : t)));
-        setEditingTodo(null);
-        resetForm();
-        setError('');
-      }
-    } catch (error) {
-      console.error('Error updating todo:', error);
-      setError('Failed to update todo');
-    }
+    setTodos(todos.map((t) => (t._id === editingTodo._id ? {
+      ...editingTodo,
+      text: newTodo,
+      dueDate,
+      dueTime,
+      reminder,
+      priority,
+      category
+    } : t)));
+    setEditingTodo(null);
+    resetForm();
   };
 
   const resetForm = () => {
     setNewTodo('');
     setDueDate('');
+    setDueTime('');
     setReminder(false);
     setPriority('medium');
     setCategory('personal');
   };
 
-  const toggleComplete = async (id) => {
-    try {
-      const todo = todos.find((t) => t._id === id);
-      const response = await axios.put(`http://localhost:5000/todos/${id}`, {
-        ...todo,
-        completed: !todo.completed
-      });
-
-      if (response.data.success) {
-        setTodos(todos.map((t) => (t._id === id ? response.data.data : t)));
-        setError('');
-      }
-    } catch (error) {
-      console.error('Error toggling todo:', error);
-      setError('Failed to update todo');
-    }
+  const toggleComplete = (id) => {
+    setTodos(todos.map((t) => (t._id === id ? { ...t, completed: !t.completed } : t)));
   };
 
-  const deleteTodo = async (id) => {
-    try {
-      const response = await axios.delete(`http://localhost:5000/todos/${id}`);
-      if (response.data.success) {
-        setTodos(todos.filter((t) => t._id !== id));
-        setError('');
-      }
-    } catch (error) {
-      console.error('Error deleting todo:', error);
-      setError('Failed to delete todo');
-    }
+  const deleteTodo = (id) => {
+    setTodos(todos.filter((t) => t._id !== id));
   };
 
   const filteredTodos = todos
@@ -144,7 +86,10 @@ function App() {
         if (!a.dueDate && !b.dueDate) return 0;
         if (!a.dueDate) return 1;
         if (!b.dueDate) return -1;
-        return new Date(a.dueDate) - new Date(b.dueDate);
+        
+        const dateTimeA = new Date(a.dueDate + (a.dueTime ? `T${a.dueTime}` : 'T23:59'));
+        const dateTimeB = new Date(b.dueDate + (b.dueTime ? `T${b.dueTime}` : 'T23:59'));
+        return dateTimeA - dateTimeB;
       }
       if (sortBy === 'priority') {
         const order = { high: 3, medium: 2, low: 1 };
@@ -153,14 +98,10 @@ function App() {
       return new Date(b.createdAt) - new Date(a.createdAt);
     });
 
-  if (loading) {
-    return <div className="app"><div className="loading">Loading todos...</div></div>;
-  }
-
   return (
     <div className={darkMode ? 'app dark' : 'app'}>
       <div className="header">
-        <h2>📝 Welcome to To-Do List</h2>
+        <h2>📝 Welcome to T-Do List</h2>
         <input
           type="text"
           className="search-input"
@@ -179,11 +120,15 @@ function App() {
 
       {/* Task Stats */}
       <div className="stats">
-        <p>Total: {todos.length}</p>
-        <p>Completed: {todos.filter((t) => t.completed).length}</p>
-        <p>Pending: {todos.filter((t) => !t.completed).length}</p>
-        <p>Reminders: {todos.filter((t) => t.reminder).length}</p>
-        <p>Overdue: {todos.filter((t) => t.dueDate && new Date(t.dueDate) < new Date() && !t.completed).length}</p>
+        <p>📊 Total: {todos.length}</p>
+        <p>✅ Completed: {todos.filter((t) => t.completed).length}</p>
+        <p>⏳ Pending: {todos.filter((t) => !t.completed).length}</p>
+        <p>🔔 Reminders: {todos.filter((t) => t.reminder).length}</p>
+        <p>⚠️ Overdue: {todos.filter((t) => {
+          if (!t.dueDate || t.completed) return false;
+          const dueDateTimeString = t.dueDate + (t.dueTime ? `T${t.dueTime}` : 'T23:59');
+          return new Date(dueDateTimeString) < new Date();
+        }).length}</p>
       </div>
 
       {/* Input Form */}
@@ -196,10 +141,17 @@ function App() {
           onKeyPress={(e) => e.key === 'Enter' && (editingTodo ? updateTodo() : addTodo())}
         />
         <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+        <input 
+          type="time" 
+          value={dueTime} 
+          onChange={(e) => setDueTime(e.target.value)}
+          title="Due time (optional)"
+          className="time-input"
+        />
         <select value={priority} onChange={(e) => setPriority(e.target.value)}>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
+          <option value="low">Low Priority</option>
+          <option value="medium">Medium Priority</option>
+          <option value="high">High Priority</option>
         </select>
         <select value={category} onChange={(e) => setCategory(e.target.value)}>
           <option value="personal">Personal</option>
@@ -208,71 +160,86 @@ function App() {
           <option value="education">Education</option>
           <option value="shopping">Shopping</option>
         </select>
-        <label>
+        <label style={{whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '8px', minWidth: 'auto', flex: 'none'}}>
           <input
             type="checkbox"
             checked={reminder}
             onChange={() => setReminder(!reminder)}
+            style={{transform: 'scale(1.2)'}}
           /> 🔔 Reminder
         </label>
         <button onClick={editingTodo ? updateTodo : addTodo}>
-          {editingTodo ? 'Update' : 'Add'}
+          {editingTodo ? '📝 Update Task' : '➕ Add Task'}
         </button>
         {editingTodo && (
           <button onClick={() => {
             setEditingTodo(null);
             resetForm();
           }}>
-            Cancel
+            ❌ Cancel
           </button>
         )}
       </div>
 
-    <div className="filter-section toolbar">
-  <div className="left-controls">
-    <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
-      <option value="dueDate">Sort by Due Date</option>
-      <option value="priority">Sort by Priority</option>
-      <option value="createdAt">Sort by Created Date</option>
-    </select>
-  </div>
+      <div className="filter-section toolbar">
+        <div className="left-controls">
+          <select value={sortBy} onChange={(e) => setSortBy(e.target.value)}>
+            <option value="dueDate">📅 Sort by Due Date</option>
+            <option value="priority">⚡ Sort by Priority</option>
+            <option value="createdAt">🕒 Sort by Created Date</option>
+          </select>
+        </div>
 
-  <div className="right-controls">
-    <label className="dropdown-label">Show:</label>
-    <select value={filter} onChange={(e) => setFilter(e.target.value)} className="filter-dropdown">
-      <option value="all">All</option>
-      <option value="completed">Completed</option>
-      <option value="pending">Pending</option>
-      <option value="reminder">🔔 Reminders</option>
-    </select>
+        <div className="right-controls">
+          <label className="dropdown-label">Show:</label>
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} className="filter-dropdown">
+            <option value="all">📋 All</option>
+            <option value="completed">✅ Completed</option>
+            <option value="pending">⏳ Pending</option>
+            <option value="reminder">🔔 Reminders</option>
+          </select>
 
-    <button onClick={() => setDarkMode(!darkMode)}>
-      {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
-    </button>
-  </div>
-</div>
-
-          
+          <button onClick={() => setDarkMode(!darkMode)}>
+            {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+          </button>
+        </div>
+      </div>
 
       {/* Todo Table */}
       <table className="todo-table">
         <thead>
           <tr>
-            <th>✔</th>
-            <th>Task</th>
-            <th>Priority</th>
-            <th>Category</th>
-            <th>Due Date</th>
-            <th>🔔</th>
-            <th>Actions</th>
+            <th>✓ STATUS</th>
+            <th>📝 TASK DETAILS</th>
+            <th>⚡ PRIORITY</th>
+            <th>📂 CATEGORY</th>
+            <th>📅 DUE DATE & TIME</th>
+            <th>🔔 REMINDER</th>
+            <th>⚙️ ACTIONS</th>
           </tr>
         </thead>
         <tbody>
           {filteredTodos.length === 0 ? (
-            <tr><td colSpan="7">No tasks found.</td></tr>
+            <tr><td colSpan="7" style={{textAlign: 'center', padding: '40px', fontSize: '1.2rem', color: '#666'}}>🔍 No tasks found matching your criteria</td></tr>
           ) : (
             filteredTodos.map((todo) => {
-              const isOverdue = todo.dueDate && new Date(todo.dueDate) < new Date() && !todo.completed;
+              const isOverdue = todo.dueDate && !todo.completed && (() => {
+                const dueDateTimeString = todo.dueDate + (todo.dueTime ? `T${todo.dueTime}` : 'T23:59');
+                return new Date(dueDateTimeString) < new Date();
+              })();
+              
+              const formatDateTime = (date, time) => {
+                if (!date) return '—';
+                const formattedDate = new Date(date).toLocaleDateString();
+                if (time) {
+                  const [hours, minutes] = time.split(':');
+                  const hour12 = parseInt(hours) % 12 || 12;
+                  const ampm = parseInt(hours) >= 12 ? 'PM' : 'AM';
+                  return `${formattedDate} at ${hour12}:${minutes} ${ampm}`;
+                }
+                return formattedDate;
+              };
+
               return (
                 <tr key={todo._id} className={`${todo.completed ? 'done' : ''} ${isOverdue ? 'overdue' : ''}`}>
                   <td>
@@ -280,45 +247,47 @@ function App() {
                       type="checkbox"
                       checked={todo.completed}
                       onChange={() => toggleComplete(todo._id)}
+                      style={{transform: 'scale(1.2)'}}
                     />
                   </td>
-                  <td>{todo.text}</td>
+                  <td style={{fontWeight: '500'}}>{todo.text}</td>
                   <td>
                     <span className={`priority-${todo.priority}`}>
                       {todo.priority}
                     </span>
                   </td>
-                  <td>{todo.category}</td>
+                  <td style={{textTransform: 'capitalize'}}>{todo.category}</td>
                   <td>
-                    {todo.dueDate ? new Date(todo.dueDate).toLocaleDateString() : '—'}
-                    {isOverdue && <span className="overdue-indicator"> ⚠️</span>}
+                    {formatDateTime(todo.dueDate, todo.dueTime)}
+                    {isOverdue && <span className="overdue-indicator"> ⚠️ OVERDUE</span>}
                   </td>
-                  <td>{todo.reminder ? '🔔' : ''}</td>
+                  <td style={{textAlign: 'center', fontSize: '1.2rem'}}>{todo.reminder ? '🔔' : '—'}</td>
                   <td>
-  <button
-    className="icon-button"
-    onClick={() => {
-      setEditingTodo(todo);
-      setNewTodo(todo.text);
-      setDueDate(todo.dueDate || '');
-      setReminder(todo.reminder);
-      setPriority(todo.priority);
-      setCategory(todo.category);
-    }}
-    title="Edit"
-  >
-    ✏️
-  </button>
+                    <button
+                      className="icon-button"
+                      onClick={() => {
+                        setEditingTodo(todo);
+                        setNewTodo(todo.text);
+                        setDueDate(todo.dueDate || '');
+                        setDueTime(todo.dueTime || '');
+                        setReminder(todo.reminder);
+                        setPriority(todo.priority);
+                        setCategory(todo.category);
+                      }}
+                      title="Edit Task"
+                    >
+                      ✏️
+                    </button>
 
-  <button
-    className="icon-button"
-    onClick={() => deleteTodo(todo._id)}
-    title="Delete"
-  >
-    🗑️
-  </button>
-</td>
-
+                    <button
+                      className="icon-button"
+                      onClick={() => deleteTodo(todo._id)}
+                      title="Delete Task"
+                      style={{background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)'}}
+                    >
+                      🗑️
+                    </button>
+                  </td>
                 </tr>
               );
             })

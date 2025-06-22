@@ -3,22 +3,15 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
-
-// Load environment variables
 dotenv.config();
-
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-// ✅ Middleware
 app.use(cors({
   origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
   credentials: true
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// ✅ MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/todoapp';
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
@@ -29,8 +22,6 @@ mongoose.connect(MONGODB_URI, {
   console.error('❌ MongoDB connection error:', error.message);
   process.exit(1);
 });
-
-// ✅ Todo schema & model
 const todoSchema = new mongoose.Schema({
   text: {
     type: String,
@@ -54,32 +45,27 @@ const todoSchema = new mongoose.Schema({
     required: [true, 'Due Date is required'],
     default: null
   },
+  // In your backend model/schema, add:
+dueTime: {
+  type: String, // Store as "HH:MM" format
+  required: false
+},
   reminder: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });
-
 todoSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
-
 const Todo = mongoose.model('Todo', todoSchema);
-
-// ✅ Utility for async error handling
 const asyncHandler = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next);
 };
-
-// ✅ Routes
-
-// Get all todos
 app.get('/todos', asyncHandler(async (req, res) => {
   const todos = await Todo.find().sort({ createdAt: -1 });
   res.json({ success: true, data: todos });
 }));
-
-// Create a todo
 app.post('/todos', asyncHandler(async (req, res) => {
   const { text, priority, category, dueDate, reminder } = req.body;
 
@@ -92,15 +78,11 @@ app.post('/todos', asyncHandler(async (req, res) => {
 
   res.status(201).json({ success: true, data: savedTodo });
 }));
-
-// Get one todo
 app.get('/todos/:id', asyncHandler(async (req, res) => {
   const todo = await Todo.findById(req.params.id);
   if (!todo) return res.status(404).json({ success: false, message: 'Todo not found' });
   res.json({ success: true, data: todo });
 }));
-
-// Update a todo
 app.put('/todos/:id', asyncHandler(async (req, res) => {
   const todo = await Todo.findById(req.params.id);
   if (!todo) return res.status(404).json({ success: false, message: 'Todo not found' });
@@ -116,15 +98,11 @@ app.put('/todos/:id', asyncHandler(async (req, res) => {
   const updated = await todo.save();
   res.json({ success: true, data: updated });
 }));
-
-// Delete a todo
 app.delete('/todos/:id', asyncHandler(async (req, res) => {
   const todo = await Todo.findByIdAndDelete(req.params.id);
   if (!todo) return res.status(404).json({ success: false, message: 'Todo not found' });
   res.json({ success: true, message: 'Todo deleted' });
 }));
-
-// ✅ Error handler
 const errorHandler = (err, req, res, next) => {
   console.error('Error:', err.message);
   if (err.name === 'ValidationError') {
@@ -140,16 +118,11 @@ const errorHandler = (err, req, res, next) => {
     error: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
   });
 };
-
 app.use(errorHandler);
-
-// ✅ Serve React frontend (for production)
 app.use(express.static(path.join(__dirname, '../frontend/build')));
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/build/index.html'));
 });
-
-// ✅ Start server
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, 5001, () => {
   console.log(`🚀 Server running on http://0.0.0.0:${PORT}`);
 });
